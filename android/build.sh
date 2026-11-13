@@ -21,7 +21,7 @@ cp -r "$WEB/css" "$WEB/js" "$WEB/fonts" "$WEB/icons" "$W/assets/www/"
 # 2. resources + manifest
 "$BUILD_TOOLS/aapt2" compile --dir "$HERE/res" -o "$W/res.zip"
 "$BUILD_TOOLS/aapt2" link -o "$W/base.apk" -I "$ANDROID_JAR" --manifest "$HERE/AndroidManifest.xml" \
-  -A "$W/assets" --java "$W/gen" --min-sdk-version 24 --target-sdk-version 34 \
+  --java "$W/gen" --min-sdk-version 24 --target-sdk-version 34 \
   --version-code "$CODE" --version-name "$VERSION" "$W/res.zip"
 
 # 3. Java -> dex
@@ -30,7 +30,17 @@ cp -r "$WEB/css" "$WEB/js" "$WEB/fonts" "$WEB/icons" "$W/assets/www/"
 "$JAVA" -cp "$BUILD_TOOLS/lib/d8.jar" com.android.tools.r8.D8 --release --min-api 24 --lib "$ANDROID_JAR" \
   --output "$W/dex" $(find "$W/classes" -name '*.class')
 
-# 4. add dex, align, sign
+# 4. add the web files, dex; align, sign
+# (aapt2 -A on Windows writes nested asset names with backslashes, which Android cannot open,
+#  so the assets are added here with forward-slash names instead)
+python -I -c "
+import os,sys,zipfile
+apk,root=sys.argv[1],sys.argv[2]
+z=zipfile.ZipFile(apk,'a',zipfile.ZIP_DEFLATED)
+for d,_,fs in os.walk(root):
+    for f in sorted(fs):
+        full=os.path.join(d,f); z.write(full,'assets/'+os.path.relpath(full,root).replace(os.sep,'/'))
+z.close()" "$W/base.apk" "$W/assets"
 (cd "$W/dex" && "$BUILD_TOOLS/aapt" add "$W/base.apk" classes.dex >/dev/null)
 "$BUILD_TOOLS/zipalign" -f -p 4 "$W/base.apk" "$W/aligned.apk"
 if [ ! -f "$KEYSTORE" ]; then
