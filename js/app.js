@@ -1,7 +1,7 @@
 /* Daymark app logic. All interface text comes from js/i18n.js via T(). */
 (function(){
 'use strict';
-var VERSION='1.3.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
+var VERSION='1.4.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
 var HUES=['#3b73f0','#e0612a','#12a07a','#b548ad','#c29a12','#1795b5'];
 var OLD_DEFAULT_SECTIONS=['Vaccines','Indicators','Practice']; /* versions before 1.2 started with these */
 var ICON={
@@ -352,18 +352,21 @@ function viewSheet(){
       h('button',{class:'link',type:'button',text:T('gotIt'),onclick:function(){state.welcome=false;commit()}})):null,
     h('div',{class:'scroll',tabindex:'-1'},table),
     h('form',{class:'quick fabgap',style:'max-width:420px',onsubmit:function(e){e.preventDefault();if(addSection(ns.value)){ui.focus='newSection';commit()}}},ns,h('button',{class:'btn ghost',type:'submit',text:T('addSection')})),
-    h('div',{class:'btnrow noprint'},h('button',{class:'btn ghost',type:'button',id:'printBtn',text:T('printBtn'),onclick:function(){window.print()}})),
+    h('div',{class:'btnrow noprint'},h('button',{class:'btn ghost',type:'button',id:'printBtn',text:T('printBtn'),onclick:function(){if(ANDROID)ANDROID.print();else window.print()}})),
     h('p',{class:'help',text:T('sheetHelp')+' '+T(plain?'sheetHelpPlain':'sheetHelpSections')}));
 }
 
 /* ---------- more: install, backup, share ---------- */
-function isStandalone(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
-function appUrl(){return location.origin+location.pathname.replace(/index\.html$/,'')}
+var ANDROID=window.DaymarkAndroid||null; /* set when running inside the Android app (android/ folder) */
+var PUBLIC_URL='https://flaviteron.github.io/daymark/';
+function isStandalone(){return !!ANDROID||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true}
+function appUrl(){return ANDROID?PUBLIC_URL:location.origin+location.pathname.replace(/index\.html$/,'')}
 function exportData(){
   var payload={app:'daymark',format:2,exportedAt:new Date().toISOString(),data:state};
   var name='daymark-backup-'+todayKey()+'.json';
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   function finish(){try{localStorage.setItem('daymark-lastExport',todayKey())}catch(e){}toast(T('exported'));render()}
+  if(ANDROID){window.daymarkSaved=function(ok){if(ok)finish()};ANDROID.saveFile(name,JSON.stringify(payload,null,2));return}
   function download(){
     var url=URL.createObjectURL(blob),a=h('a',{href:url,download:name,style:'display:none'});
     document.body.appendChild(a);a.click();
@@ -397,6 +400,7 @@ function importData(file){
 $('importFile').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)importData(f)});
 function shareApp(){
   var url=appUrl();
+  if(ANDROID){ANDROID.shareText(T('shareText')+'\n'+url);return}
   if(navigator.share){navigator.share({title:'Daymark',text:T('shareText'),url:url}).catch(function(){});return}
   copyLink();
 }
@@ -431,8 +435,8 @@ function viewMore(){
     install,
     h('div',{class:'card'},h('h2',{text:T('shareTitle')}),h('p',{text:T('shareBody')}),h('p',{style:'overflow-wrap:anywhere;color:var(--ink);font-weight:500',text:appUrl()}),
       h('div',{class:'btnrow'},
-        navigator.share?h('button',{class:'btn',type:'button',text:T('shareBtn'),onclick:shareApp}):null,
-        h('button',{class:'btn'+(navigator.share?' ghost':''),type:'button',text:T('copyBtn'),onclick:copyLink}))),
+        (navigator.share||ANDROID)?h('button',{class:'btn',type:'button',text:T('shareBtn'),onclick:shareApp}):null,
+        h('button',{class:'btn'+((navigator.share||ANDROID)?' ghost':''),type:'button',text:T('copyBtn'),onclick:copyLink}))),
     langCard,
     h('div',{class:'card'},h('h2',{text:T('eraseTitle')}),h('p',{text:T('eraseBody')}),
       h('div',{class:'btnrow'},h('button',{class:'btn danger',type:'button',text:T('eraseBtn'),onclick:function(){
@@ -594,7 +598,7 @@ setInterval(rollover,60000);
 /* ---------- install prompt, offline cache ---------- */
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();ui.installEvt=e;if(ui.tab==='more')render()});
 window.addEventListener('appinstalled',function(){ui.installEvt=null;if(ui.tab==='more')render()});
-if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+if(!ANDROID&&'serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('sw.js').then(function(reg){
       function offer(w){if(!w||!navigator.serviceWorker.controller)return;
@@ -608,6 +612,15 @@ if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
     navigator.serviceWorker.addEventListener('controllerchange',function(){if(!had){had=true;return}if(reloading)return;reloading=true;location.reload()});
   });
 }
+
+/* Android back button: close whatever is open, then return to the Sheet, then leave the app */
+window.daymarkBack=function(){
+  if($('confirm').classList.contains('open')){closeConfirm(false);return true}
+  if($('secDlg').classList.contains('open')){closeSection();return true}
+  if($('overlay').classList.contains('open')){closeForm();return true}
+  if(ui.tab!=='sheet'){location.hash='sheet';return true}
+  return false;
+};
 
 route();
 })();

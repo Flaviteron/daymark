@@ -86,3 +86,12 @@ at `https://<username>.github.io/<repository>/`.
 
 Fonts: Bricolage Grotesque and Instrument Sans, both under the SIL Open Font License
 (see `fonts/OFL-*.txt`).
+
+## Android APK
+
+`android/` holds a small wrapper that packs the web app into an installable APK (a
+WebView that loads the bundled files; no Gradle). To build it you need a JDK 17, the
+Android SDK build-tools and an Android platform `android.jar`; see the comments at
+the top of `android/build.sh`. Keep the signing keystore: Android only accepts an
+update if it is signed with the same key. The APK keeps its own data, separate from
+the browser version; use Export and Import to move a checklist between them.
