@@ -1,7 +1,7 @@
 /* Daymark app logic. All interface text comes from js/i18n.js via T(). */
 (function(){
 'use strict';
-var VERSION='1.0.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
+var VERSION='1.1.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
 var HUES=['#3b73f0','#e0612a','#12a07a','#b548ad','#c29a12','#1795b5'];
 var DEFAULT_SECTIONS=['Vaccines','Indicators','Practice'];
 var ICON={
@@ -65,7 +65,7 @@ function normalize(s){
 }
 function load(){try{return normalize(JSON.parse(localStorage.getItem(KEY)))||fresh()}catch(e){return fresh()}}
 var state=load();
-var ui={month:todayKey().slice(0,7),tab:'sheet',day:todayKey(),weekStart:monday(todayKey()),filter:'',just:null,focus:null,arrange:false,installEvt:null};
+var ui={month:todayKey().slice(0,7),tab:'sheet',day:todayKey(),weekStart:monday(todayKey()),filter:'',just:null,focus:null,installEvt:null};
 
 function saveLocal(){
   try{localStorage.setItem(KEY,JSON.stringify(state));return true}
@@ -280,55 +280,62 @@ function viewProgress(){
     chipBar(),weekCard(),
     habits.length?habits.map(habitCard):h('div',{class:'card'},h('div',{class:'empty',style:'padding:0',text:T('noHabits')})));
 }
+var MIN_ROWS=5; /* ruled lines shown per section, like the paper sheet; there is always at least one empty line */
+var renderTimer=null;
+function commitSoon(){ /* save now, redraw a moment later so the tap that ended the typing still lands */
+  state.updatedAt=Date.now();saveLocal();clearTimeout(renderTimer);renderTimer=setTimeout(render,180);
+}
 function viewSheet(){
   var t=todayKey(),ym=ui.month,y=+ym.slice(0,4),m=+ym.slice(5,7),n=new Date(y,m,0).getDate(),keys=[],i;
   for(i=1;i<=n;i++)keys.push(ym+'-'+String(i).padStart(2,'0'));
   function shift(d,id){var x=new Date(y,m-1+d,1);ui.month=key(x).slice(0,7);ui.focus=id;render()}
   var title=new Date(y,m-1,1).toLocaleDateString(LANG,{month:'long',year:'numeric'});
-  var head=h('tr',null,h('th',{class:'name',scope:'col',text:T('date')}));
+  var head=h('tr',null,h('th',{class:'vsec'}),h('th',{class:'name',scope:'col',text:T('date')+':'}));
   keys.forEach(function(k){head.appendChild(h('th',{class:'d'+(k===t?' now':''),scope:'col','aria-current':k===t?'date':null},h('small',{text:DAY[parse(k).getDay()].slice(0,2)}),String(parse(k).getDate())))});
   head.appendChild(h('th',{class:'sum',scope:'col',text:T('total')}));
   var table=h('table',{class:'sheet'},h('thead',null,head));
   var habits=state.items.filter(function(x){return x.kind==='daily'}),names=groups().slice();
   if(habits.some(function(x){return !x.group}))names.push('');
   names.forEach(function(g,gi){
-    var rows=habits.filter(function(x){return x.group===g}),body=h('tbody');
-    var label=g||T('noSection');
-    var inp=g?h('input',{class:'secname',type:'text',value:g,maxlength:'40','aria-label':T('sectionName'),
-      onchange:function(){renameSection(g,inp.value)},onkeydown:function(e){if(e.key==='Enter')inp.blur()}}):h('span',{class:'secname',text:label});
-    var used=state.items.filter(function(x){return x.group===g}).length;
-    body.appendChild(h('tr',{class:'sech wide'},h('td',{colspan:String(n+2)},h('div',{class:'stick'},
-      g?h('span',{class:'dot',style:'background:'+hue(g)}):null,inp,
-      g&&ui.arrange?h('button',{class:'arr',type:'button',id:'su-'+gi,disabled:gi===0,'aria-label':T('moveUp',{name:g}),text:'↑',onclick:function(){ui.focus='su-'+(gi-1);moveSection(g,-1)}}):null,
-      g&&ui.arrange?h('button',{class:'arr',type:'button',id:'sd-'+gi,disabled:gi>=groups().length-1,'aria-label':T('moveDown',{name:g}),text:'↓',onclick:function(){ui.focus='sd-'+(gi+1);moveSection(g,1)}}):null,
-      g&&ui.arrange?h('button',{class:'mini rm',type:'button','aria-label':T('deleteSection',{name:g}),text:T('del'),onclick:function(){
-        askConfirm(T('delSectionTitle'),used?T('delSectionUsed',{name:g,n:used}):T('delSectionEmpty',{name:g}),T('del'),function(){deleteSection(g)})}}):null))));
-    rows.forEach(function(it,ri){
-      var nameCell=h('div',{class:'namecell'},
-        h('button',{class:'rowname',type:'button',id:'rn-'+it.id,title:T('edit'),'aria-label':T('editItem',{title:it.title}),text:it.title,onclick:function(){openForm(it)}}),
-        ui.arrange?h('button',{class:'arr',type:'button',id:'ru-'+it.id,disabled:ri===0,'aria-label':T('moveUp',{name:it.title}),text:'↑',onclick:function(){ui.focus='ru-'+it.id;moveRow(it,-1)}}):null,
-        ui.arrange?h('button',{class:'arr',type:'button',id:'rd-'+it.id,disabled:ri===rows.length-1,'aria-label':T('moveDown',{name:it.title}),text:'↓',onclick:function(){ui.focus='rd-'+it.id;moveRow(it,1)}}):null);
-      var tr=h('tr',null,h('th',{class:'name',scope:'row'},nameCell)),cnt=0;
+    var rows=habits.filter(function(x){return x.group===g}),body=h('tbody'),label=g||T('noSection');
+    var blanks=g?Math.max(1,MIN_ROWS-rows.length):0;
+    var secCell=h('th',{class:'vsec',scope:'rowgroup',rowspan:String(rows.length+blanks)},
+      g?h('button',{class:'seclabel',type:'button',id:'sec-'+gi,title:T('sectionOptions',{name:g}),'aria-label':T('sectionOptions',{name:g}),onclick:function(){openSection(g)}},h('span',{text:g}))
+       :h('div',{class:'seclabel'},h('span',{text:label})));
+    function put(tr){if(secCell){tr.insertBefore(secCell,tr.firstChild);secCell=null}body.appendChild(tr)}
+    rows.forEach(function(it){
+      var inp=h('input',{class:'rowinp',type:'text',id:'rn-'+it.id,value:it.title,maxlength:'120','aria-label':T('rowName'),autocomplete:'off',
+        onchange:function(){var v=inp.value.trim();if(!v||v===it.title){inp.value=it.title;return}it.title=v;commitSoon()},
+        onkeydown:function(e){if(e.key==='Enter')inp.blur();else if(e.key==='Escape'){inp.value=it.title;inp.blur()}}});
+      var tr=h('tr',null,h('th',{class:'name',scope:'row'},h('div',{class:'namecell'},inp,
+        h('button',{class:'rowmore',type:'button',id:'ro-'+it.id,title:T('rowOptions',{title:it.title}),'aria-label':T('rowOptions',{title:it.title}),text:'⋯',onclick:function(){openForm(it)}})))),cnt=0;
       keys.forEach(function(k){
         var fut=k>t,sch=onDay(it,k),on=ticked(it,k);if(on)cnt++;
         tr.appendChild(h('td',{class:k===t?'nowcol':null},h('button',{class:'c'+(on?' on':'')+(!sch?' off':''),type:'button',id:'c-'+it.id+'-'+k,disabled:fut||(!sch&&!on),
           'aria-pressed':on?'true':'false','aria-label':T('cellLabel',{title:it.title,date:nice(k)}),html:ICON.check,onclick:function(){toggleCell(it,k)}})));
       });
-      tr.appendChild(h('td',{class:'sum',text:String(cnt)}));body.appendChild(tr);
+      tr.appendChild(h('td',{class:'sum',text:String(cnt)}));put(tr);
     });
-    if(g){var addInp=h('input',{type:'text',maxlength:'120',placeholder:T('addRow'),id:'add-'+gi,'aria-label':T('addRowTo',{section:g}),autocomplete:'off'});
-      body.appendChild(h('tr',{class:'wide'},h('td',{colspan:String(n+2)},h('form',{class:'stick addrow',onsubmit:function(e){e.preventDefault();var v=addInp.value.trim();if(!v)return;
-        state.items.push({id:uid(),title:v,kind:'daily',days:[],due:null,group:g,created:t,doneAt:null});state.welcome=false;ui.focus=addInp.id;commit()}},addInp,h('button',{class:'mini',type:'submit',text:T('add')})))))}
+    for(var b=0;b<blanks;b++)(function(b){
+      var inp=h('input',{class:'rowinp',type:'text',id:'blank-'+gi+'-'+b,maxlength:'120',placeholder:b===0?T('writeHere'):null,'aria-label':T('newRowIn',{section:label}),autocomplete:'off',
+        onchange:function(){create(false)},onkeydown:function(e){if(e.key==='Enter'){e.preventDefault();create(true)}}});
+      function create(stay){var v=inp.value.trim();if(!v)return;inp.value='';
+        state.items.push({id:uid(),title:v,kind:'daily',days:[],due:null,group:g,created:t,doneAt:null});state.welcome=false;
+        if(stay){ui.focus='blank-'+gi+'-0';commit()}else commitSoon()}
+      var tr=h('tr',null,h('th',{class:'name',scope:'row'},h('div',{class:'namecell'},inp)));
+      keys.forEach(function(k){tr.appendChild(h('td',{class:k===t?'nowcol':null}))});
+      tr.appendChild(h('td',{class:'sum'}));put(tr);
+    })(b);
     table.appendChild(body);
   });
   var ns=h('input',{type:'text',id:'newSection',maxlength:'40',placeholder:T('newSectionName'),'aria-label':T('newSectionName'),autocomplete:'off'});
   var thisYm=t.slice(0,7);
   return h('div',{class:'sheet-wrap sheet-wide'},
-    h('header',{class:'head'},h('div',{class:'txt'},h('div',{class:'eyebrow',text:T('sheetEyebrow')}),h('h1',{text:title})),
+    h('header',{class:'head'},h('div',{class:'txt'},h('h1',{text:T('sheetEyebrow')})),
       h('div',{class:'monthbar'},
-        ym!==thisYm?h('button',{class:'btn ghost',type:'button',text:T('thisMonth'),onclick:function(){ui.month=thisYm;ui.focus='mPrev';render()}}):null,
-        h('button',{class:'btn ghost',type:'button',id:'arrangeBtn','aria-pressed':ui.arrange?'true':'false',text:ui.arrange?T('arrangeDone'):T('arrange'),onclick:function(){ui.arrange=!ui.arrange;ui.focus='arrangeBtn';render()}}),
         h('button',{class:'arrow',type:'button',id:'mPrev','aria-label':T('prevMonth'),text:'‹',onclick:function(){shift(-1,'mPrev')}}),
+        ym!==thisYm?h('button',{class:'mlabel',type:'button',id:'mNow',title:T('thisMonth'),'aria-label':title+'. '+T('thisMonth'),text:title,onclick:function(){ui.month=thisYm;ui.focus='mPrev';render()}})
+                   :h('div',{class:'mlabel',text:title}),
         h('button',{class:'arrow',type:'button',id:'mNext','aria-label':T('nextMonth'),text:'›',onclick:function(){shift(1,'mNext')}}))),
     state.welcome?h('div',{class:'note'},h('p',{text:T('welcome')}),
       h('button',{class:'link',type:'button',text:T('gotIt'),onclick:function(){state.welcome=false;commit()}})):null,
@@ -423,6 +430,7 @@ function viewMore(){
 
 /* ---------- render ---------- */
 function render(){
+  clearTimeout(renderTimer);
   var main=$('main'),v=ui.tab==='sheet'?viewSheet():ui.tab==='later'?viewLater():ui.tab==='progress'?viewProgress():ui.tab==='more'?viewMore():viewToday();
   var keepY=main.scrollTop;
   main.replaceChildren(v);main.scrollTop=keepY;
@@ -477,6 +485,10 @@ function syncForm(){
   $('fWhenWrap').hidden=F.kind!=='once';$('fDaysWrap').hidden=F.kind!=='days';$('fDate').hidden=F.when!=='date';
   Array.prototype.forEach.call($('fDays').children,function(b){b.setAttribute('aria-pressed',F.days.indexOf(+b.getAttribute('data-d'))>=0?'true':'false')});
   $('fNewGroup').hidden=$('fGroup').value!=='__new';
+  var cur=F.id?state.items.filter(function(i){return i.id===F.id})[0]:null,sib=[];
+  if(cur&&cur.kind==='daily')sib=state.items.filter(function(x){return x.kind==='daily'&&x.group===cur.group});
+  $('fPosWrap').hidden=!(cur&&cur.kind==='daily'&&sib.length>1);
+  $('fUp').disabled=sib.indexOf(cur)<=0;$('fDown').disabled=sib.indexOf(cur)<0||sib.indexOf(cur)>=sib.length-1;
   $('fDelete').hidden=!F.id;$('fDelete').textContent=F.confirmDel?T('tapAgainDelete'):T('del');
   $('fDelete').classList.toggle('solid',F.confirmDel);
 }
@@ -498,18 +510,43 @@ function closeForm(){
   if(!$('overlay').classList.contains('open'))return;
   $('overlay').classList.remove('open');
   if(lastFocus&&document.contains(lastFocus))lastFocus.focus();
+  else{var el=F.id&&$('ro-'+F.id);if(el)el.focus()}
 }
+
+/* section options: rename, move, delete */
+var S={name:null};
+function syncSection(){var i=state.sections.indexOf(S.name);$('sUp').disabled=i<=0;$('sDown').disabled=i<0||i>=state.sections.length-1}
+function openSection(g){S.name=g;$('sName').value=g;syncSection();$('secDlg').classList.add('open');setTimeout(function(){$('sName').focus();$('sName').select()},30)}
+function applySectionName(){var v=$('sName').value.trim().slice(0,40);if(v&&v!==S.name&&groups().indexOf(v)<0){renameSection(S.name,v);S.name=v}else $('sName').value=S.name}
+function closeSection(){
+  if(!$('secDlg').classList.contains('open'))return;
+  $('secDlg').classList.remove('open');var el=$('sec-'+state.sections.indexOf(S.name));if(el)el.focus();
+}
+function nudgeSection(dir){applySectionName();moveSection(S.name,dir);syncSection();var b=dir<0?$('sUp'):$('sDown');if(b.disabled)$('sDone').focus();else b.focus()}
+$('sUp').addEventListener('click',function(){nudgeSection(-1)});
+$('sDown').addEventListener('click',function(){nudgeSection(1)});
+$('sForm').addEventListener('submit',function(e){e.preventDefault();applySectionName();closeSection()});
+$('sDelete').addEventListener('click',function(){
+  var g=S.name,used=state.items.filter(function(x){return x.group===g}).length;
+  askConfirm(T('delSectionTitle'),used?T('delSectionUsed',{name:g,n:used}):T('delSectionEmpty',{name:g}),T('del'),function(){$('secDlg').classList.remove('open');deleteSection(g)});
+});
+$('secDlg').addEventListener('click',function(e){if(e.target===$('secDlg'))closeSection()});
+$('secDlg').addEventListener('keydown',function(e){trap(e,$('secDlg'))});
 WD.forEach(function(d){$('fDays').appendChild(h('button',{type:'button','data-d':String(d),text:DAY[d].slice(0,2),'aria-label':new Date(2024,0,7+d).toLocaleDateString(LANG,{weekday:'long'}),
   onclick:function(){var i=F.days.indexOf(d);if(i>=0)F.days.splice(i,1);else F.days.push(d);syncForm()}}))});
 $('fKind').addEventListener('click',function(e){var b=e.target.closest('button');if(b){F.kind=b.getAttribute('data-v');syncForm()}});
 $('fWhen').addEventListener('click',function(e){var b=e.target.closest('button');if(b){F.when=b.getAttribute('data-v');syncForm()}});
 $('fGroup').addEventListener('change',function(){syncForm();if($('fGroup').value==='__new')$('fNewGroup').focus()});
+function nudge(dir){var it=state.items.filter(function(i){return i.id===F.id})[0];if(!it)return;
+  moveRow(it,dir);syncForm();var b=dir<0?$('fUp'):$('fDown');if(b.disabled)$('fCancel').focus();else b.focus()}
+$('fUp').addEventListener('click',function(){nudge(-1)});
+$('fDown').addEventListener('click',function(){nudge(1)});
 $('fCancel').addEventListener('click',closeForm);
 $('overlay').addEventListener('click',function(e){if(e.target===$('overlay'))closeForm()});
 $('overlay').addEventListener('keydown',function(e){trap(e,$('overlay'))});
 document.addEventListener('keydown',function(e){
   if(e.key!=='Escape')return;
-  if($('confirm').classList.contains('open'))closeConfirm(false);else closeForm();
+  if($('confirm').classList.contains('open'))closeConfirm(false);else{closeSection();closeForm()}
 });
 $('fDelete').addEventListener('click',function(){
   if(!F.confirmDel){F.confirmDel=true;syncForm();return}

@@ -144,6 +144,8 @@ h2{font-family:var(--display);font-weight:700;font-size:15px;margin:0;letter-spa
 .overlay{position:fixed;inset:0;background:rgba(10,13,30,.5);display:none;align-items:flex-end;justify-content:center;z-index:20}
 .overlay.open{display:flex}
 #confirm{z-index:30}
+.dialog .btnrow .btn{flex:1}
+.dialog .btnrow .btn:disabled{opacity:.4}
 .dialog{background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px;max-height:92%;overflow-y:auto}
 .dialog h3{font-family:var(--display);font-size:22px;font-weight:700;margin:0}
 .dialog p{margin:0;color:var(--muted);line-height:1.5}
@@ -166,51 +168,55 @@ h2{font-family:var(--display);font-weight:700;font-size:15px;margin:0;letter-spa
 .toast button{color:var(--mark);font-weight:700;padding:4px 2px}
 @media (prefers-color-scheme: dark){.toast button{color:var(--accent)}}
 
-/* ---------- month sheet ---------- */
-.sheet-wide{max-width:1280px}
-.monthbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+/* ---------- month sheet: drawn like the paper check-list ---------- */
+.sheet-wide{max-width:1320px}
+.sheet-wide .head{flex-wrap:wrap}
+.monthbar{display:flex;align-items:center;gap:6px}
 .monthbar .arrow{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:20px}
-.monthbar .btn{padding:9px 13px;font-size:14px}
-.scroll{overflow-x:auto;background:var(--surface);border:1.5px solid var(--ink);border-radius:12px;overscroll-behavior-x:contain}
+.monthbar .mlabel{font-family:var(--display);font-weight:700;font-size:17px;min-width:150px;text-align:center;padding:10px 8px;border-radius:10px;min-height:44px}
+.monthbar button.mlabel{color:var(--accent)}
+.scroll{overflow-x:auto;background:var(--surface);border:2px solid var(--ink);border-radius:4px;overscroll-behavior-x:contain;
+  --grid:color-mix(in srgb,var(--ink) 40%,var(--surface));--today:color-mix(in srgb,var(--mark) 22%,var(--surface))}
 table.sheet{border-collapse:separate;border-spacing:0;font-size:14px;width:max-content;min-width:100%}
-.sheet th,.sheet td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0}
-.sheet tbody:last-child tr:last-child td{border-bottom:0}
-.sheet .name{position:sticky;left:0;z-index:2;background:var(--surface);border-right:1.5px solid var(--ink);min-width:136px;max-width:230px;text-align:left}
-.sheet thead th{background:var(--surface);border-bottom:1.5px solid var(--ink);font-weight:600}
-.sheet thead .name{padding:8px 10px;font-size:12.5px;color:var(--muted)}
-.sheet th.d{min-width:30px;width:30px;padding:5px 0 4px;font-variant-numeric:tabular-nums}
+.sheet th,.sheet td{border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);padding:0;font-weight:500;background:var(--surface)}
+.sheet tr>:last-child{border-right:0}
+.sheet thead th{border-bottom:2px solid var(--ink)}
+.sheet tbody tr:last-child>*,.sheet tbody th.vsec{border-bottom:2px solid var(--ink)}
+.sheet tbody:last-child tr:last-child>*,.sheet tbody:last-child th.vsec{border-bottom:0}
+.sheet .vsec{position:sticky;left:0;z-index:3;width:34px;min-width:34px;max-width:34px}
+.sheet .name{position:sticky;left:34px;z-index:2;border-right:2px solid var(--ink);width:250px;min-width:250px;max-width:250px;text-align:left}
+.sheet thead .name{text-align:right;padding:8px 10px;font-size:13px;color:var(--muted)}
+.seclabel{position:absolute;inset:0;width:100%;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:13px;font-weight:600;padding:6px 0;letter-spacing:.01em}
+.seclabel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-height:100%}
+button.seclabel:hover{background:color-mix(in srgb,var(--mark) 40%,transparent)}
+button.seclabel:focus-visible{outline-offset:-3px}
+.namecell{display:flex;align-items:center}
+.rowinp{flex:1;min-width:0;width:100%;height:34px;border:0;border-radius:0;background:transparent;padding:0 4px 0 10px;font-weight:500;text-overflow:ellipsis}
+.rowinp:hover{background:color-mix(in srgb,var(--mark) 18%,transparent)}
+.rowinp:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--paper)}
+.rowinp::placeholder{color:var(--muted);font-weight:400;font-style:italic}
+.rowmore{flex:none;width:34px;height:34px;color:var(--muted);font-size:18px;line-height:1}
+.rowmore:hover{color:var(--ink)}
+.sheet th.d{min-width:30px;width:30px;padding:5px 0 4px;font-variant-numeric:tabular-nums;font-weight:600}
 .sheet th.d small{display:block;font-size:10px;color:var(--muted);font-weight:600}
 .sheet th.d.now{background:var(--mark)} .sheet th.d.now small{color:var(--ink)}
-.sheet th.sum,.sheet td.sum{min-width:46px;text-align:center;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);border-right:0;padding:0 6px}
+.sheet th.sum,.sheet td.sum{min-width:46px;text-align:center;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);padding:0 6px}
 .sheet td.sum{font-weight:600;color:var(--ink)}
-.sheet .sech td{background:var(--paper);border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line);border-right:0}
-.sheet tbody:first-of-type .sech td{border-top:0}
-.sheet .wide td{border-right:0}
-.stick{position:sticky;left:0;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;max-width:min(92vw,560px)}
-.secname{font-family:var(--display);font-weight:700;font-size:15px;background:transparent;border:1px solid transparent;border-radius:7px;padding:6px;width:190px;max-width:46vw;min-width:0}
-input.secname:hover,input.secname:focus{border-color:var(--line);background:var(--surface)}
-.namecell{display:flex;align-items:center}
-.rowname{flex:1;min-width:0;display:block;text-align:left;padding:8px 10px;font-weight:500;overflow-wrap:anywhere;min-height:34px}
+.sheet td.nowcol{background:var(--today)}
 .c{width:100%;min-width:30px;height:34px;display:grid;place-items:center;color:transparent}
-.c svg{width:14px;height:14px}
-.c.on{background:var(--accent);color:var(--on-accent)}
-.c.off{background:var(--paper)}
+.c svg{width:17px;height:17px}
+.c.on{background:var(--mark);color:var(--ink)}
+.c.off{background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--ink) 13%,transparent) 4px 5px)}
 .c:not(:disabled):not(.on):hover{background:color-mix(in srgb,var(--mark) 45%,transparent)}
-td.nowcol{box-shadow:inset 2px 0 0 var(--mark),inset -2px 0 0 var(--mark)}
-.addrow{display:flex;gap:6px;align-items:center}
-.addrow input{background:transparent;border:1px dashed var(--muted);border-radius:8px;padding:8px 9px;width:200px;max-width:52vw;font-size:14px}
-.addrow input::placeholder{color:var(--muted)}
 .mini{font-size:13px;font-weight:600;color:var(--accent);padding:8px 6px;min-height:36px}
-.mini.rm{color:var(--warn)}
-.arr{flex:none;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:14px;line-height:1;color:var(--ink)}
-.arr:disabled{opacity:.35}
-.namecell .arr{margin-right:4px}
 .help{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
+.sheet-wide h1{white-space:nowrap;font-size:clamp(28px,6vw,40px)}
+@media (max-width:640px){.sheet-wide .head .txt{flex:1 1 100%}.sheet-wide .monthbar{flex:1}.monthbar .mlabel{flex:1}.sheet .name{width:142px;min-width:142px;max-width:142px}.rowinp{padding-left:7px}.rowmore{width:28px}}
 @media (pointer:coarse){
   .sheet th.d{min-width:38px;width:38px}
   .c{min-width:38px;height:42px}
-  .rowname{min-height:42px;padding:10px}
-  .arr{width:40px;height:40px}
+  .rowinp,.rowmore{height:42px}
 }
 
 .app.wide aside{display:none}

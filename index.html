@@ -58,11 +58,35 @@
       <select id="fGroup"></select>
       <input type="text" id="fNewGroup" maxlength="40" data-i18n-ph="newSectionName" data-i18n-aria="newSectionName">
     </div>
+    <div class="field" id="fPosWrap"><span class="lab" data-i18n="position"></span>
+      <div class="btnrow">
+        <button type="button" class="btn ghost" id="fUp" data-i18n="moveUpBtn"></button>
+        <button type="button" class="btn ghost" id="fDown" data-i18n="moveDownBtn"></button>
+      </div>
+    </div>
     <div class="actions">
       <button type="button" class="btn danger" id="fDelete"></button>
       <span class="sp"></span>
       <button type="button" class="btn ghost" id="fCancel" data-i18n="cancel"></button>
       <button type="submit" class="btn" id="fSave" data-i18n="save"></button>
+    </div>
+  </form>
+</div>
+
+<div class="overlay" id="secDlg">
+  <form class="dialog" id="sForm" role="dialog" aria-modal="true" aria-labelledby="sTitle" novalidate>
+    <h3 id="sTitle" data-i18n="sectionTitle"></h3>
+    <div class="field"><label for="sName" data-i18n="nameLabel"></label><input type="text" id="sName" maxlength="40" autocomplete="off"></div>
+    <div class="field"><span class="lab" data-i18n="position"></span>
+      <div class="btnrow">
+        <button type="button" class="btn ghost" id="sUp" data-i18n="moveUpBtn"></button>
+        <button type="button" class="btn ghost" id="sDown" data-i18n="moveDownBtn"></button>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="sDelete" data-i18n="deleteSectionBtn"></button>
+      <span class="sp"></span>
+      <button type="submit" class="btn" id="sDone" data-i18n="doneBtn"></button>
     </div>
   </form>
 </div>
