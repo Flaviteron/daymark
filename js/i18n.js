@@ -41,6 +41,7 @@ window.DAYMARK_I18N = {
       moveUpBtn: 'Move up', moveDownBtn: 'Move down', doneBtn: 'Done', deleteSectionBtn: 'Delete section',
       newSectionName: 'Section name (optional)', addSection: 'Add section',
       sheetHelp: 'Write on any empty line to add a row, then tap the squares to tick the days. Tap a name to change it, or ⋯ for more options.',
+      printBtn: 'Print or save as PDF',
       sheetHelpPlain: 'Sections are optional: add one below if you want to group your rows.',
       sheetHelpSections: 'Tap a section name on the left edge to rename, move or delete it. Delete every section to get a plain sheet again.',
       welcome: 'This sheet works like the paper one. Write your habits on the empty lines, then tick the squares day by day.',

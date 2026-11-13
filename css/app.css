@@ -209,6 +209,7 @@ button.seclabel:focus-visible{outline-offset:-3px}
 .c svg{width:17px;height:17px}
 .c.on{background:var(--mark);color:var(--ink)}
 .c.off{background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--ink) 13%,transparent) 4px 5px)}
+.c.on.off{background:var(--mark)}
 .c:not(:disabled):not(.on):hover{background:color-mix(in srgb,var(--mark) 45%,transparent)}
 .mini{font-size:13px;font-weight:600;color:var(--accent);padding:8px 6px;min-height:36px}
 .help{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0}
@@ -244,3 +245,38 @@ button.seclabel:focus-visible{outline-offset:-3px}
   aside .stack{display:flex;flex-direction:column;gap:14px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- printing the month sheet (Print or save as PDF) ---------- */
+@page{size:A4 landscape;margin:10mm}
+@media print{
+  :root{--paper:#fff;--surface:#fff;--ink:#151a2d;--muted:#5b6480;--line:#dde0ec;--accent:#2742d6;--on-accent:#fff;--mark:#ffe14d;--warn:#b93a0a;color-scheme:light}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{height:auto;background:#fff}
+  .app{display:block;height:auto}
+  main{overflow:visible;padding:0}
+  .nav,aside,.fab,.toast,.overlay,.note,.quick,.help,.noprint,.monthbar .arrow,.rowmore{display:none!important}
+  .sheet-wrap{max-width:none;padding:0;gap:10px}
+  .sheet-wide .head{flex-wrap:nowrap;align-items:baseline}
+  .sheet-wide .head .txt{flex:1 1 auto}
+  .sheet-wide h1{font-size:22pt}
+  .sheet-wide .monthbar{flex:none}
+  .monthbar .mlabel{min-width:0;min-height:0;padding:0;font-size:13pt;color:var(--ink)}
+  .scroll{overflow:visible;border-width:1.5pt;border-radius:0;--grid:#151a2d;--today:#fff}
+  table.sheet{width:100%;min-width:0;table-layout:fixed;font-size:9pt}
+  .sheet th,.sheet td{border-width:.5pt}
+  .sheet thead th,.sheet tbody tr:last-child>*,.sheet tbody th.vsec{border-bottom-width:1.5pt}
+  .sheet tbody:last-child tr:last-child>*,.sheet tbody:last-child th.vsec{border-bottom-width:0}
+  .sheet .vsec,.sheet .name{position:static}
+  .sheet .vsec{position:relative;width:7mm;min-width:0;max-width:none}
+  .sheet .name{width:58mm;min-width:0;max-width:none;border-right-width:1.5pt}
+  .sheet th.d{width:auto;min-width:0;font-size:8pt;padding:2px 0}
+  .sheet th.d.now{background:#fff}
+  .sheet th.sum,.sheet td.sum{width:11mm;min-width:0;padding:0;font-size:8pt}
+  .seclabel{font-size:8.5pt}
+  .rowinp{height:6.6mm;font-size:9pt;padding:0 2mm}
+  .rowinp::placeholder{color:transparent}
+  .c{min-width:0;height:6.6mm}
+  .c svg{width:11px;height:11px}
+  .sheet tr{break-inside:avoid}
+  .sheet thead{display:table-header-group}
+}

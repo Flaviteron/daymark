@@ -1,7 +1,7 @@
 /* Daymark app logic. All interface text comes from js/i18n.js via T(). */
 (function(){
 'use strict';
-var VERSION='1.2.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
+var VERSION='1.3.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
 var HUES=['#3b73f0','#e0612a','#12a07a','#b548ad','#c29a12','#1795b5'];
 var OLD_DEFAULT_SECTIONS=['Vaccines','Indicators','Practice']; /* versions before 1.2 started with these */
 var ICON={
@@ -352,6 +352,7 @@ function viewSheet(){
       h('button',{class:'link',type:'button',text:T('gotIt'),onclick:function(){state.welcome=false;commit()}})):null,
     h('div',{class:'scroll',tabindex:'-1'},table),
     h('form',{class:'quick fabgap',style:'max-width:420px',onsubmit:function(e){e.preventDefault();if(addSection(ns.value)){ui.focus='newSection';commit()}}},ns,h('button',{class:'btn ghost',type:'submit',text:T('addSection')})),
+    h('div',{class:'btnrow noprint'},h('button',{class:'btn ghost',type:'button',id:'printBtn',text:T('printBtn'),onclick:function(){window.print()}})),
     h('p',{class:'help',text:T('sheetHelp')+' '+T(plain?'sheetHelpPlain':'sheetHelpSections')}));
 }
 
