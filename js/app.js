@@ -1,9 +1,9 @@
 /* Daymark app logic. All interface text comes from js/i18n.js via T(). */
 (function(){
 'use strict';
-var VERSION='1.1.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
+var VERSION='1.2.0', KEY='daymark-v1', WD=[1,2,3,4,5,6,0];
 var HUES=['#3b73f0','#e0612a','#12a07a','#b548ad','#c29a12','#1795b5'];
-var DEFAULT_SECTIONS=['Vaccines','Indicators','Practice'];
+var OLD_DEFAULT_SECTIONS=['Vaccines','Indicators','Practice']; /* versions before 1.2 started with these */
 var ICON={
   check:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>',
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M8.5 13l2.5 2.5 4.5-5"/></svg>',
@@ -40,10 +40,10 @@ var DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 
 /* ---------- state ---------- */
 function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3)}
-function fresh(){return {v:2,updatedAt:0,welcome:true,log:{},sections:DEFAULT_SECTIONS.slice(),items:[]}}
+function fresh(){return {v:3,updatedAt:0,welcome:true,log:{},sections:[],items:[]}}
 function normalize(s){
   if(!s||typeof s!=='object'||!Array.isArray(s.items))return null;
-  var out={v:2,updatedAt:+s.updatedAt||0,welcome:!!s.welcome,log:{},sections:[],items:[]};
+  var out={v:3,updatedAt:+s.updatedAt||0,welcome:!!s.welcome,log:{},sections:[],items:[]};
   (Array.isArray(s.sections)?s.sections:[]).forEach(function(x){
     if(typeof x!=='string')return;x=x.trim().slice(0,40);if(x&&out.sections.indexOf(x)<0)out.sections.push(x)});
   var ids={};
@@ -63,7 +63,16 @@ function normalize(s){
     if(a.length)out.log[k]=a});
   return out;
 }
-function load(){try{return normalize(JSON.parse(localStorage.getItem(KEY)))||fresh()}catch(e){return fresh()}}
+function load(){
+  try{
+    var raw=JSON.parse(localStorage.getItem(KEY)),s=normalize(raw);
+    if(!s)return fresh();
+    /* sections became optional in 1.2: drop the old starter sections if nothing was ever put in them */
+    if((+raw.v||1)<3)s.sections=s.sections.filter(function(g){
+      return OLD_DEFAULT_SECTIONS.indexOf(g)<0||s.items.some(function(i){return i.group===g})});
+    return s;
+  }catch(e){return fresh()}
+}
 var state=load();
 var ui={month:todayKey().slice(0,7),tab:'sheet',day:todayKey(),weekStart:monday(todayKey()),filter:'',just:null,focus:null,installEvt:null};
 
@@ -280,6 +289,7 @@ function viewProgress(){
     chipBar(),weekCard(),
     habits.length?habits.map(habitCard):h('div',{class:'card'},h('div',{class:'empty',style:'padding:0',text:T('noHabits')})));
 }
+var PLAIN_ROWS=10; /* empty lines on a sheet with no sections */
 var MIN_ROWS=5; /* ruled lines shown per section, like the paper sheet; there is always at least one empty line */
 var renderTimer=null;
 function commitSoon(){ /* save now, redraw a moment later so the tap that ended the typing still lands */
@@ -290,16 +300,17 @@ function viewSheet(){
   for(i=1;i<=n;i++)keys.push(ym+'-'+String(i).padStart(2,'0'));
   function shift(d,id){var x=new Date(y,m-1+d,1);ui.month=key(x).slice(0,7);ui.focus=id;render()}
   var title=new Date(y,m-1,1).toLocaleDateString(LANG,{month:'long',year:'numeric'});
-  var head=h('tr',null,h('th',{class:'vsec'}),h('th',{class:'name',scope:'col',text:T('date')+':'}));
+  var plain=!groups().length; /* no sections: a plain ruled sheet with no side column */
+  var head=h('tr',null,plain?null:h('th',{class:'vsec'}),h('th',{class:'name',scope:'col',text:T('date')+':'}));
   keys.forEach(function(k){head.appendChild(h('th',{class:'d'+(k===t?' now':''),scope:'col','aria-current':k===t?'date':null},h('small',{text:DAY[parse(k).getDay()].slice(0,2)}),String(parse(k).getDate())))});
   head.appendChild(h('th',{class:'sum',scope:'col',text:T('total')}));
-  var table=h('table',{class:'sheet'},h('thead',null,head));
+  var table=h('table',{class:'sheet'+(plain?' nosec':'')},h('thead',null,head));
   var habits=state.items.filter(function(x){return x.kind==='daily'}),names=groups().slice();
-  if(habits.some(function(x){return !x.group}))names.push('');
+  if(plain||habits.some(function(x){return !x.group}))names.push('');
   names.forEach(function(g,gi){
     var rows=habits.filter(function(x){return x.group===g}),body=h('tbody'),label=g||T('noSection');
-    var blanks=g?Math.max(1,MIN_ROWS-rows.length):0;
-    var secCell=h('th',{class:'vsec',scope:'rowgroup',rowspan:String(rows.length+blanks)},
+    var blanks=g?Math.max(1,MIN_ROWS-rows.length):plain?Math.max(1,PLAIN_ROWS-rows.length):1;
+    var secCell=plain?null:h('th',{class:'vsec',scope:'rowgroup',rowspan:String(rows.length+blanks)},
       g?h('button',{class:'seclabel',type:'button',id:'sec-'+gi,title:T('sectionOptions',{name:g}),'aria-label':T('sectionOptions',{name:g}),onclick:function(){openSection(g)}},h('span',{text:g}))
        :h('div',{class:'seclabel'},h('span',{text:label})));
     function put(tr){if(secCell){tr.insertBefore(secCell,tr.firstChild);secCell=null}body.appendChild(tr)}
@@ -339,9 +350,9 @@ function viewSheet(){
         h('button',{class:'arrow',type:'button',id:'mNext','aria-label':T('nextMonth'),text:'›',onclick:function(){shift(1,'mNext')}}))),
     state.welcome?h('div',{class:'note'},h('p',{text:T('welcome')}),
       h('button',{class:'link',type:'button',text:T('gotIt'),onclick:function(){state.welcome=false;commit()}})):null,
-    names.length?h('div',{class:'scroll',tabindex:'-1'},table):h('div',{class:'note'},h('p',{text:T('sheetEmpty')})),
+    h('div',{class:'scroll',tabindex:'-1'},table),
     h('form',{class:'quick fabgap',style:'max-width:420px',onsubmit:function(e){e.preventDefault();if(addSection(ns.value)){ui.focus='newSection';commit()}}},ns,h('button',{class:'btn ghost',type:'submit',text:T('addSection')})),
-    h('p',{class:'help',text:T('sheetHelp')}));
+    h('p',{class:'help',text:T('sheetHelp')+' '+T(plain?'sheetHelpPlain':'sheetHelpSections')}));
 }
 
 /* ---------- more: install, backup, share ---------- */

@@ -1,7 +1,7 @@
 /* Daymark service worker: keeps a copy of the whole app on the device so it
    opens with no internet. Change CACHE whenever any app file changes, so
    installed copies pick up the new version. */
-var CACHE = 'daymark-1.1.0';
+var CACHE = 'daymark-1.2.0';
 var FILES = [
   './',
   'index.html',
